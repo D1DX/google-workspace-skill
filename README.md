@@ -1,0 +1,2 @@
+# google-workspace-skill
+placeholder
