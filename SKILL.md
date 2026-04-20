@@ -193,3 +193,47 @@ For operations not covered by n8n nodes, use HTTP Request node with OAuth2 crede
 12. **File export limits** — Google Docs export to PDF has a 10MB limit.
 13. **`workspace-mcp` token cache + alias trap** — `workspace-mcp` caches OAuth tokens at `~/.google_workspace_mcp/credentials/{email}.json`, keyed by the email Google's `userinfo` endpoint returns. **Account aliases produce separate files for the same Google account** — e.g. signing in once as `user@primary.com` and once as `user@alias.org` creates two credential files; whichever Google echoes back on the next auth wins, causing flaky scope/expiry behavior. **Expired tokens manifest as "permission denied" / "insufficient scope" errors that look like consent screen problems but aren't** — Google's account permissions page will show all scopes granted while the cached token is stale. **Diagnostic:** `python3 -c "import json; d=json.load(open('PATH')); print(d.get('scopes')); print(d.get('expiry'))"` reads the actual scope set + expiry from the file. **Fix recipe:** delete every file under `~/.google_workspace_mcp/credentials/`, then re-trigger auth (any workspace-mcp tool call, or hit the MCP's `localhost:8099` auth endpoint), and on Google's account chooser pick the **canonical** email form (not an alias) so the new credential file lands at the canonical filename.
 
+---
+
+## 7. Large Payloads & Workarounds
+
+### The hard ceiling — `gws --json` ~1 MB (ARG_MAX)
+
+- `gws … --json <JSON>` passes the body as a shell argument. macOS/Linux kernel `ARG_MAX` (~1 MB on macOS, ~128 KB–2 MB on Linux) makes anything above fail with `zsh: argument list too long`.
+- **`--json -` (stdin) is NOT supported** — gws returns `"Invalid --json body: EOF while parsing a value"`.
+- **`--json @file` is NOT supported** — gws treats the `@file` as literal JSON and fails to parse.
+- **`--upload <path>` wraps the file in `multipart/related; boundary=gws_…`** — Gmail's `drafts.create` rejects it with `"Media type 'multipart/related' is not supported"` because the endpoint wants bare `message/rfc822`. Upload flag works for Drive/Sheets but **not** for the Gmail endpoints that expect raw RFC-822.
+
+### Can't reuse gws credentials from Python
+
+- `gws auth export` decrypts `credentials.enc` and returns `{client_id, client_secret, refresh_token, type}`.
+- **The exported `client_secret` is frozen at the time gws first authenticated.** If `~/.config/gws/client_secret.json` was rotated later, the exported secret no longer matches Google → token-refresh fails with `invalid_client: "The provided client secret is invalid."` **gws itself keeps working** because it uses the cached access token in `token_cache.json` (AEAD-encrypted, binary header `0x87 0xD3 …`, unreadable externally) instead of calling the refresh endpoint.
+- Google's token endpoint **requires** `client_secret` for `grant_type=refresh_token` (returns `400: client_secret is missing.` without it) — no PKCE fallback for installed-app clients.
+- **gws has no `GWS_ACCESS_TOKEN` / `GOOGLE_ACCESS_TOKEN` env var override.** The Bearer token it sends cannot be captured without an HTTPS MITM proxy with a trusted CA (mitmproxy, etc.).
+
+### The escape hatch — Apps Script as a proxy for large Gmail drafts with attachments
+
+When the draft body + N PDFs exceeds ~1 MB, use this pattern:
+
+1. **Upload each attachment to Drive** via `mcp__google-workspace-daniel__create_drive_file` with `fileUrl: "https://…"` (fetches remote), or `fileUrl: "file:///tmp/foo.pdf"` (local). Keep the IDs.
+2. **Create an Apps Script project** via `mcp__google-workspace-daniel__create_script_project`.
+3. **Push code** via `mcp__google-workspace-daniel__update_script_content` with both an `appsscript` (JSON manifest, required) and `Code` (SERVER_JS) file. The manifest MUST declare `oauthScopes` — e.g. `["https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/drive.readonly"]`.
+4. **Function body** — `GmailApp.createDraft(to, subject, body, {attachments: fileIds.map(id => DriveApp.getFileById(id).getBlob()), from: 'alias@…', replyTo: '…', name: '…'})`.
+5. **Run the function.**
+
+### Apps Script pre-requisites & first-run authorization trap
+
+- **Apps Script API must be enabled per-user** at `https://script.google.com/home/usersettings`. Without it, `create_script_project` fails with `403: "User has not enabled the Apps Script API."`
+- **`run_script_function` returns `404 "Requested entity was not found"` on the first call** — even with `dev_mode: true`. The script needs a one-time browser-side authorization before the execution API can invoke it.
+- **Fix:** open `https://script.google.com/d/{SCRIPT_ID}/edit`, select the function in the dropdown, click ▶ Run, accept the OAuth consent dialog (Gmail + Drive scopes). After that, `run_script_function` works programmatically for subsequent calls.
+
+### JS string escaping for Apps Script push
+
+- `update_script_content` takes `files: [{name, type, source}]`. The `source` is a single-line JSON string — literal newlines in the body will be parsed as line breaks in the JS source and crash at runtime with `SyntaxError: Invalid or unexpected token`.
+- Build the source in Python with `json.dumps(body_text)` to get a properly-escaped JS string literal (handles `\n`, embedded `"`, unicode via `\uXXXX`). Interpolate the result into the JS `var body = …;` template.
+- Hebrew/RTL content survives transport as `\uXXXX` escapes — no UTF-8 handling needed inside Apps Script.
+
+### Name cadence
+
+- Drive-upload → Apps-Script-proxy is the canonical pattern for **any** Gmail send/draft where the MIME exceeds `gws --json`'s limit. Don't fight gws — route around it.
+
