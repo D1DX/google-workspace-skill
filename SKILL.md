@@ -237,3 +237,15 @@ When the draft body + N PDFs exceeds ~1 MB, use this pattern:
 
 - Drive-upload → Apps-Script-proxy is the canonical pattern for **any** Gmail send/draft where the MIME exceeds `gws --json`'s limit. Don't fight gws — route around it.
 
+### Side note — R2 presigned URL validation (not Google-specific, logged here because it burned a whole paperwork-email session)
+
+If any part of the Gmail workflow uses `uploads.d1dx.tools` signed URLs (e.g. shlink wrapping an R2 SigV4 URL): **don't validate them with `curl -I` / HEAD.** An R2 presigned URL signed for `GetObjectCommand` only permits the GET verb. HEAD returns `403 Forbidden` even when signature and expiry are valid. This looks identical to token revocation and will send you down a 3-hour incident rabbit hole that isn't real.
+
+```bash
+# Correct
+curl -sSo /dev/null -w "%{http_code}\n" -H "Range: bytes=0-1023" "$URL"
+
+# Wrong — always 403
+curl -sI "$URL"
+```
+
