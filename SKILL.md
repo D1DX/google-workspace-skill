@@ -239,7 +239,7 @@ When the draft body + N PDFs exceeds ~1 MB, use this pattern:
 
 ### Side note — R2 presigned URL validation (not Google-specific, logged here because it burned a whole paperwork-email session)
 
-If any part of the Gmail workflow uses `uploads.d1dx.tools` signed URLs (e.g. shlink wrapping an R2 SigV4 URL): **don't validate them with `curl -I` / HEAD.** An R2 presigned URL signed for `GetObjectCommand` only permits the GET verb. HEAD returns `403 Forbidden` even when signature and expiry are valid. This looks identical to token revocation and will send you down a 3-hour incident rabbit hole that isn't real.
+If any part of the Gmail workflow uses `uploads.example.com` signed URLs (e.g. shlink wrapping an R2 SigV4 URL): **don't validate them with `curl -I` / HEAD.** An R2 presigned URL signed for `GetObjectCommand` only permits the GET verb. HEAD returns `403 Forbidden` even when signature and expiry are valid. This looks identical to token revocation and will send you down a 3-hour incident rabbit hole that isn't real.
 
 ```bash
 # Correct
