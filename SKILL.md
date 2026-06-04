@@ -215,9 +215,9 @@ For operations not covered by n8n nodes, use HTTP Request node with OAuth2 crede
 
 When the draft body + N PDFs exceeds ~1 MB, use this pattern:
 
-1. **Upload each attachment to Drive** via `mcp__google-workspace-daniel__create_drive_file` with `fileUrl: "https://…"` (fetches remote), or `fileUrl: "file:///tmp/foo.pdf"` (local). Keep the IDs.
-2. **Create an Apps Script project** via `mcp__google-workspace-daniel__create_script_project`.
-3. **Push code** via `mcp__google-workspace-daniel__update_script_content` with both an `appsscript` (JSON manifest, required) and `Code` (SERVER_JS) file. The manifest MUST declare `oauthScopes` — e.g. `["https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/drive.readonly"]`.
+1. **Upload each attachment to Drive** via `mcp__google-workspace__create_drive_file` with `fileUrl: "https://…"` (fetches remote), or `fileUrl: "file:///tmp/foo.pdf"` (local). Keep the IDs.
+2. **Create an Apps Script project** via `mcp__google-workspace__create_script_project`.
+3. **Push code** via `mcp__google-workspace__update_script_content` with both an `appsscript` (JSON manifest, required) and `Code` (SERVER_JS) file. The manifest MUST declare `oauthScopes` — e.g. `["https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/drive.readonly"]`.
 4. **Function body** — `GmailApp.createDraft(to, subject, body, {attachments: fileIds.map(id => DriveApp.getFileById(id).getBlob()), from: 'alias@…', replyTo: '…', name: '…'})`.
 5. **Run the function.**
 
