@@ -52,9 +52,9 @@ Google added MCP support to the `gws` CLI in v0.5.0, then [removed it two days l
 
 ## Sources
 
-- **gws CLI:** Verified against [@googleworkspace/cli](https://github.com/googleworkspace/cli) npm package and live usage (April 2026).
+- **gws CLI:** Verified against [@googleworkspace/cli](https://github.com/googleworkspace/cli) npm package and live usage.
 - **Google APIs:** Verified against [Google Workspace API documentation](https://developers.google.com/workspace) and [Gmail API reference](https://developers.google.com/gmail/api/reference/rest).
-- **Rate limits:** Verified from [Google API quota documentation](https://developers.google.com/workspace/guides/implement-quota) (April 2026).
+- **Rate limits:** Verified from [Google API quota documentation](https://developers.google.com/workspace/guides/implement-quota).
 
 ## Credits
 

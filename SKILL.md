@@ -2,7 +2,7 @@
 name: google-workspace
 description: Google Workspace — MCP vs CLI decision tree, gws CLI reference, Gmail/Calendar/Drive/Sheets/Docs gotchas, rate limits, and n8n integration. Auto-triggers on Gmail, Google Calendar, Google Drive, Google Docs, Google Sheets, and Workspace API tasks.
 disable-model-invocation: false
-user-invocable: true
+user-invokable: true
 argument-hint: "task description"
 ---
 
@@ -14,7 +14,7 @@ Two complementary tools for Google Workspace:
 
 Each manages its own OAuth independently.
 
-**As of April 2026.** All APIs v1.
+All APIs v1.
 
 ---
 
@@ -39,7 +39,7 @@ I need server-side automation (n8n, cron, background)
 
 | Capability | workspace-mcp (MCP) | gws CLI |
 |---|---|---|
-| MCP integration | Yes (stdio) | Removed (March 2026) |
+| MCP integration | Yes (stdio) | Removed |
 | Chat thread replies | Yes (basic) | Yes (full API) |
 | Chat thread reading | No (space-level only) | Yes (filter by thread) |
 | Chat message edit/delete | No | Yes |
@@ -237,9 +237,9 @@ When the draft body + N PDFs exceeds ~1 MB, use this pattern:
 
 - Drive-upload → Apps-Script-proxy is the canonical pattern for **any** Gmail send/draft where the MIME exceeds `gws --json`'s limit. Don't fight gws — route around it.
 
-### Side note — R2 presigned URL validation (not Google-specific, logged here because it burned a whole paperwork-email session)
+### Side note — R2 presigned URL validation (not Google-specific)
 
-If any part of the Gmail workflow uses `uploads.example.com` signed URLs (e.g. shlink wrapping an R2 SigV4 URL): **don't validate them with `curl -I` / HEAD.** An R2 presigned URL signed for `GetObjectCommand` only permits the GET verb. HEAD returns `403 Forbidden` even when signature and expiry are valid. This looks identical to token revocation and will send you down a 3-hour incident rabbit hole that isn't real.
+If any part of the Gmail workflow uses `uploads.example.com` signed URLs (e.g. shlink wrapping an R2 SigV4 URL): **don't validate them with `curl -I` / HEAD.** An R2 presigned URL signed for `GetObjectCommand` only permits the GET verb. HEAD returns `403 Forbidden` even when signature and expiry are valid — this looks identical to token revocation but isn't; validate with a ranged GET instead.
 
 ```bash
 # Correct
